@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-horizon"
+dynamic = ["version"]
+description = "Run a Snowflake dbt project on DuckDB over Snowflake Horizon Iceberg tables"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: SQL",
+    "Topic :: Database",
+    "Environment :: Console",
+]
+# Pinned: Horizon external-engine writes need DuckDB >= 1.5.4 and the attach options it
+# added; dbt versions are the ones the POC ran 31/31 with. sqlglot is pinned exactly: its
+# output is part of the rewritten model code, which must be the same on every run.
+dependencies = [
+    "dbt-core~=1.12.6",
+    "dbt-duckdb~=1.11.0",
+    "duckdb==1.5.6",
+    "sqlglot==30.24.0",
+    "pydantic>=2.7,<3",
+    "PyYAML>=6,<7",
+    "ruamel.yaml>=0.18,<0.19",
+    "typer>=0.12,<1",
+]
+
+[project.urls]
+Source = "https://github.com/harikrishna1822/dbt-horizon"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+# `export` proves the Snowflake target is unchanged by compiling against it (offline).
+export = ["dbt-snowflake~=1.12.4"]
+
+[project.scripts]
+dbt-horizon = "dbt_horizon.cli:app"
+
+[tool.setuptools.dynamic]
+version = { attr = "dbt_horizon.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dbt_horizon = ["shim/*.sql", "templates/*.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "online: needs a Snowflake account (set DBT_HORIZON_ONLINE=1 and the PAT env vars)",
+]

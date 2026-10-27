@@ -1,0 +1,17 @@
+# Schedule of one deployment. Default: daily at 02:00 (machine time zone).
+# Another schedule for one deployment: sudo systemctl edit dbt-horizon@<name>.timer
+#   [Timer]
+#   OnCalendar=
+#   OnCalendar=*-*-* 06,18:00:00
+[Unit]
+Description=dbt-horizon schedule: %i
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+RandomizedDelaySec=5min
+# a run missed while the machine was off starts at boot
+Persistent=true
+Unit=dbt-horizon@%i.service
+
+[Install]
+WantedBy=timers.target

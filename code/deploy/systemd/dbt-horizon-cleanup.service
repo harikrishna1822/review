@@ -1,0 +1,14 @@
+# Removes old workspaces and run logs (deploy/cleanup.sh). Installed by install-units.sh.
+[Unit]
+Description=dbt-horizon cleanup of old workspaces and logs
+
+[Service]
+Type=oneshot
+User=@USER@
+Group=@GROUP@
+Environment=DBT_HORIZON_HOME=@HOME@
+ExecStart=@HOME@/app/deploy/cleanup.sh
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

@@ -1,0 +1,484 @@
+<title>dbt-horizon Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column of figures, each a mechanism; tables after. Engineering-drawing feel:
+   cool slate neutrals, one deep-water accent for the dbt-horizon path, dashed = planned. */
+:root {
+  --bg: #f4f7f8;
+  --panel: #ffffff;
+  --fg: #13212b;
+  --muted: #566874;
+  --line: #c6d1d8;
+  --line-strong: #8a9ead;
+  --accent: #0a6c87;
+  --accent-soft: #e0f0f4;
+  --warn: #946200;
+  --warn-soft: #fbf1dc;
+  --ok: #2f7a3e;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151a; --panel: #152029; --fg: #e2e9ee; --muted: #93a5b2; --line: #2a3945; --line-strong: #4d6271;
+    --accent: #5ec4de; --accent-soft: #11313b; --warn: #e2b24c; --warn-soft: #33290f; --ok: #79c58a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151a; --panel: #152029; --fg: #e2e9ee; --muted: #93a5b2; --line: #2a3945; --line-strong: #4d6271;
+  --accent: #5ec4de; --accent-soft: #11313b; --warn: #e2b24c; --warn-soft: #33290f; --ok: #79c58a;
+  color-scheme: dark;
+}
+html { background: var(--bg); }
+body {
+  background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 48px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 600 clamp(30px, 5vw, 44px)/1.08 var(--font-display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font: 600 24px/1.2 var(--font-display); margin: 0; text-wrap: balance; }
+h3 { font: 600 17px/1.3 var(--font-display); margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.lead { font-size: 17px; color: var(--muted); max-width: 70ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 12px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+.chip.acc { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: 10px; }
+nav a { color: var(--fg); text-decoration: none; }
+nav a:hover, nav a:focus-visible { color: var(--accent); text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section { display: grid; gap: 16px; min-width: 0; }
+.sec-head { display: grid; gap: 6px; }
+.num { font: 500 12px/1 var(--font-mono); color: var(--accent); letter-spacing: .06em; }
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.canvas { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; padding: 12px; }
+.canvas svg { display: block; width: 100%; min-width: 820px; height: auto; color: var(--fg); }
+figcaption { font-size: 14px; color: var(--muted); max-width: 90ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 26px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line-strong); background: var(--panel); }
+.sw.acc { border-color: var(--accent); background: var(--accent-soft); }
+.sw.plan { border-style: dashed; }
+.sw.warn { border-color: var(--warn); background: var(--warn-soft); }
+
+/* SVG vocabulary (styled from the page so both themes follow the tokens) */
+svg text { font-family: var(--font-body); }
+.n rect { fill: var(--panel); stroke: var(--line-strong); stroke-width: 1.2; }
+.n.acc rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+.n.warn rect { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.6; }
+.n.plan rect { stroke-dasharray: 5 4; }
+.n.view rect { stroke-dasharray: 3 3; }
+.n.dim rect { fill: var(--bg); }
+.grp { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+.grp.acc { stroke: var(--accent); stroke-width: 1.4; }
+.grp.vpc { stroke-dasharray: 6 4; }
+.t { font-size: 13px; font-weight: 600; fill: var(--fg); }
+.tm { font: 500 13px var(--font-mono); fill: var(--fg); }
+.s { font-size: 11px; fill: var(--muted); }
+.k { font: 11px var(--font-mono); fill: var(--muted); }
+.k.acc { fill: var(--accent); }
+.lbl { font: 500 11px var(--font-mono); letter-spacing: .07em; fill: var(--muted); }
+.lbl.acc { fill: var(--accent); }
+.lbl.warn { fill: var(--warn); }
+.e { fill: none; stroke: var(--line-strong); stroke-width: 1.3; }
+.e.acc { stroke: var(--accent); stroke-width: 1.7; }
+.e.plan { stroke-dasharray: 5 4; }
+.ah { fill: var(--line-strong); }
+.ah.acc { fill: var(--accent); }
+
+/* Tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px/1.3 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td code, p code, li code { font: 13px var(--font-mono); background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+td.mono { font: 13px var(--font-mono); white-space: nowrap; }
+.tag { font: 500 11px/1 var(--font-mono); padding: 4px 7px; border-radius: 5px; white-space: nowrap; display: inline-block; }
+.tag.ok { color: var(--ok); border: 1px solid var(--ok); }
+.tag.plan { color: var(--warn); border: 1px dashed var(--warn); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.rule { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; font-size: 16px; max-width: 80ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Architecture · as built through v0.9.0 · 27 Oct 2026</div>
+  <h1>dbt-horizon: Snowflake dbt on DuckDB over Iceberg</h1>
+  <p class="lead">The same dbt project Snowflake runs, executed by DuckDB in a container. It reads the source Iceberg tables and writes the marts back as Snowflake-managed Iceberg tables, through the Horizon catalog. No Snowflake warehouse runs the transformations, and the dbt repo is never edited.</p>
+  <div class="chips">
+    <span class="chip acc">dbt-core 1.12.6 · dbt-duckdb 1.11 · DuckDB 1.5.6</span>
+    <span class="chip">Horizon Iceberg REST catalog</span>
+    <span class="chip">ghcr.io/harikrishna1822/dbt-horizon:v0.9.0</span>
+    <span class="chip warn">Fivetran ingestion · planned</span>
+  </div>
+</header>
+
+<nav aria-label="Sections">
+  <a href="#system">1 · System</a>
+  <a href="#freshness">2 · Data trigger</a>
+  <a href="#ecs">3 · AWS deployment</a>
+  <a href="#ingest">4 · Fivetran ingestion</a>
+  <a href="#components">5 · Components</a>
+  <a href="#access">6 · Access</a>
+  <a href="#status">7 · Releases &amp; verification</a>
+</nav>
+
+<!-- 1. SYSTEM -->
+<section id="system">
+  <div class="sec-head">
+    <span class="num">1 · SYSTEM</span>
+    <h2>Where code, data and credentials flow</h2>
+    <p>The catalog only handles metadata: table lists, snapshots and commits. The data files move directly between DuckDB and S3, using short-lived credentials that Snowflake vends per table.</p>
+  </div>
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1200 600" role="img" aria-label="System diagram: the dbt repo and the dbt-horizon image feed a container that syncs the repo, parses dbt, checks freshness and builds on DuckDB; it talks to Snowflake's Horizon catalog for metadata and reads and writes Iceberg data files in S3 directly, while Snowflake's own dbt run stays unchanged.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a1c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+
+        <!-- Column: code & image -->
+        <text class="lbl" x="20" y="34">CODE &amp; IMAGE</text>
+        <g class="n"><rect x="20" y="50" width="230" height="64" rx="6"/><text class="t" x="34" y="76">snowflake-dbt</text><text class="s" x="34" y="96">GitHub · dbt models · branch main</text></g>
+        <g class="n"><rect x="20" y="250" width="230" height="64" rx="6"/><text class="t" x="34" y="276">dbt-horizon</text><text class="s" x="34" y="296">app repo · Python package</text></g>
+        <g class="n"><rect x="20" y="350" width="230" height="64" rx="6"/><text class="t" x="34" y="376">GitHub Actions</text><text class="s" x="34" y="396">tests · image build · terraform</text></g>
+        <g class="n acc"><rect x="20" y="450" width="230" height="64" rx="6"/><text class="t" x="34" y="476">Container image (GHCR)</text><text class="s" x="34" y="496">dbt-horizon:v0.9.0</text></g>
+        <path class="e" d="M135,314 V346" marker-end="url(#a1)"/><text class="k" x="145" y="336">pull request</text>
+        <path class="e" d="M135,414 V446" marker-end="url(#a1)"/><text class="k" x="145" y="436">v* tag → publish</text>
+
+        <!-- Container -->
+        <rect class="grp acc" x="300" y="50" width="330" height="530" rx="10"/>
+        <text class="lbl acc" x="318" y="76">CONTAINER · dbt-horizon watch</text>
+        <text class="s" x="318" y="94">Docker on a laptop or VM, or an ECS Fargate task</text>
+        <g class="n"><rect x="320" y="112" width="290" height="44" rx="5"/><text class="t" x="334" y="131">1  Sync repo → workspace</text><text class="s" x="334" y="148">fetch, check out the commit, copy</text></g>
+        <g class="n"><rect x="320" y="170" width="290" height="44" rx="5"/><text class="t" x="334" y="189">2  dbt parse → inventory</text><text class="s" x="334" y="206">models, sources, lineage, hooks</text></g>
+        <g class="n"><rect x="320" y="228" width="290" height="44" rx="5"/><text class="t" x="334" y="247">3  Rules → compatibility report</text><text class="s" x="334" y="264">ok · auto_fixed · review · blocked</text></g>
+        <g class="n acc"><rect x="320" y="286" width="290" height="44" rx="5"/><text class="t" x="334" y="305">4  Freshness check</text><text class="s" x="334" y="322">source vs table snapshot times</text></g>
+        <g class="n"><rect x="320" y="344" width="290" height="44" rx="5"/><text class="t" x="334" y="363">5  Overlay</text><text class="s" x="334" y="380">profile, shim macros, --vars, --exclude</text></g>
+        <g class="n acc"><rect x="320" y="402" width="290" height="44" rx="5"/><text class="t" x="334" y="421">6  dbt build on DuckDB</text><text class="s" x="334" y="438">stale models + the views they read</text></g>
+        <path class="e" d="M465,156 V168" marker-end="url(#a1)"/>
+        <path class="e" d="M465,214 V226" marker-end="url(#a1)"/>
+        <path class="e" d="M465,272 V284" marker-end="url(#a1)"/>
+        <path class="e" d="M465,330 V342" marker-end="url(#a1)"/>
+        <path class="e" d="M465,388 V400" marker-end="url(#a1)"/>
+        <g class="n"><rect x="320" y="470" width="140" height="50" rx="5"/><text class="t" x="332" y="490">/data volume</text><text class="s" x="332" y="507">repo clone · workspaces</text></g>
+        <g class="n acc"><rect x="470" y="470" width="140" height="50" rx="5"/><text class="t" x="482" y="490">DuckDB 1.5.6</text><text class="s" x="482" y="507">in-process · iceberg</text></g>
+        <path class="e acc" d="M540,446 V466" marker-end="url(#a1c)"/>
+        <text class="s" x="318" y="546">PATs as environment variables · nothing on disk</text>
+        <text class="s" x="318" y="564">logs to stdout / CloudWatch · one exit code per run</text>
+
+        <path class="e" d="M250,82 H285 V134 H316" marker-end="url(#a1)"/><text class="k" x="256" y="74">git fetch</text>
+        <path class="e acc" d="M250,482 H296" marker-end="url(#a1c)"/><text class="k" x="256" y="474">image</text>
+
+        <!-- Snowflake -->
+        <g class="n plan"><rect x="710" y="20" width="170" height="48" rx="6"/><text class="t" x="724" y="40">Fivetran</text><text class="s" x="724" y="57">loads source systems · planned</text></g>
+        <path class="e plan" d="M795,68 V120" marker-end="url(#a1)"/><text class="k" x="803" y="98">loads</text>
+        <rect class="grp" x="690" y="90" width="490" height="340" rx="10"/>
+        <text class="lbl" x="990" y="112">SNOWFLAKE · RETAIL_ANALYTICS</text>
+
+        <g class="n"><rect x="710" y="124" width="170" height="56" rx="6"/><text class="t" x="724" y="148">CORE</text><text class="s" x="724" y="166">native tables · source data</text></g>
+        <g class="n"><rect x="990" y="124" width="170" height="56" rx="6"/><text class="t" x="1004" y="148">CORE_ICEBERG_S3</text><text class="s" x="1004" y="166">Iceberg copies of sources</text></g>
+        <path class="e plan" d="M880,160 H986" marker-end="url(#a1)"/>
+        <text class="k" x="935" y="150" text-anchor="middle">dynamic Iceberg</text>
+        <text class="k" x="935" y="176" text-anchor="middle">(planned)</text>
+
+        <g class="n acc"><rect x="710" y="230" width="170" height="84" rx="6"/><text class="t" x="724" y="254">Horizon catalog</text><text class="s" x="724" y="273">Iceberg REST · OAuth via PAT</text><text class="s" x="724" y="290">network policy: one IP</text><text class="s" x="724" y="306">vended S3 credentials</text></g>
+        <g class="n acc"><rect x="990" y="262" width="170" height="56" rx="6"/><text class="t" x="1004" y="286">DBT_RETAIL_ICEBERG</text><text class="s" x="1004" y="304">marts built by DuckDB</text></g>
+        <path class="e acc" d="M880,246 H1030 V184" marker-end="url(#a1c)"/><text class="k acc" x="890" y="240">serves sources</text>
+        <path class="e acc" d="M880,290 H986" marker-end="url(#a1c)"/><text class="k acc" x="935" y="284" text-anchor="middle">commits</text>
+
+        <g class="n dim"><rect x="710" y="350" width="170" height="56" rx="6"/><text class="t" x="724" y="374">Snowflake dbt run</text><text class="s" x="724" y="392">warehouse · unchanged</text></g>
+        <g class="n dim"><rect x="990" y="350" width="170" height="56" rx="6"/><text class="t" x="1004" y="374">DBT_RETAIL</text><text class="s" x="1004" y="392">native marts</text></g>
+        <path class="e" d="M880,378 H986" marker-end="url(#a1)"/><text class="k" x="935" y="372" text-anchor="middle">builds</text>
+        <path class="e" d="M710,152 H700 V378 H706" marker-end="url(#a1)"/>
+
+        <g class="n"><rect x="690" y="470" width="490" height="50" rx="6"/><text class="t" x="704" y="491">S3 bucket · external volume</text><text class="s" x="704" y="508">Iceberg data + metadata files (Parquet · Avro · JSON)</text></g>
+        <path class="e" d="M935,430 V466" marker-end="url(#a1)"/><text class="k" x="945" y="452">table files</text>
+
+        <!-- container <-> Snowflake / S3 -->
+        <path class="e acc" d="M614,300 H706" marker-start="url(#a1c)" marker-end="url(#a1c)"/>
+        <text class="k acc" x="670" y="292" text-anchor="middle">REST API</text>
+        <text class="k acc" x="670" y="318" text-anchor="middle">metadata</text>
+        <path class="e acc" d="M614,495 H686" marker-start="url(#a1c)" marker-end="url(#a1c)"/>
+        <text class="k acc" x="660" y="540" text-anchor="middle">data files</text>
+      </svg>
+    </div>
+    <figcaption>Step 4 asks Horizon for snapshot times; step 6 reads sources with the reader PAT and commits new table versions with the writer PAT, through the same REST endpoint. Snowflake's own dbt run (grey) keeps reading <code>CORE</code> and writing <code>DBT_RETAIL</code>, untouched by any of this.</figcaption>
+    <div class="legend">
+      <span><i class="sw acc"></i>dbt-horizon path, built and verified</span>
+      <span><i class="sw"></i>existing / supporting</span>
+      <span><i class="sw plan"></i>planned, not built</span>
+    </div>
+  </figure>
+</section>
+
+<!-- 2. FRESHNESS -->
+<section id="freshness">
+  <div class="sec-head">
+    <span class="num">2 · DATA TRIGGER</span>
+    <h2>What gets rebuilt when a source table changes</h2>
+  </div>
+  <p class="rule">A table is <strong>stale</strong> when it doesn't exist yet, or when any source it reads, directly or through other models, has an Iceberg snapshot newer than the table's own. No state is stored; every check works it out again from snapshot times.</p>
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1000 290" role="img" aria-label="Lineage of snowflake-dbt during the 27 October test: new rows in fact_sales made fct_sales and the two aggregates stale; they were rebuilt with the three staging views they read, while dim_store and dim_product were left untouched.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a2c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <text class="lbl" x="20" y="24">SOURCES · CORE_ICEBERG_S3</text>
+        <text class="lbl" x="260" y="24">SESSION VIEWS</text>
+        <text class="lbl" x="500" y="24">ICEBERG TABLES</text>
+        <text class="lbl" x="760" y="24">AGGREGATES</text>
+
+        <g class="n warn"><rect x="20" y="40" width="180" height="48" rx="6"/><text class="tm" x="32" y="60">fact_sales</text><text class="s" x="32" y="78">+3 rows · snapshot 09:31:29</text></g>
+        <g class="n"><rect x="20" y="130" width="180" height="48" rx="6"/><text class="tm" x="32" y="150">dim_store</text><text class="s" x="32" y="168">no change</text></g>
+        <g class="n"><rect x="20" y="220" width="180" height="48" rx="6"/><text class="tm" x="32" y="240">dim_product</text><text class="s" x="32" y="258">no change</text></g>
+
+        <g class="n acc view"><rect x="260" y="40" width="180" height="48" rx="6"/><text class="tm" x="272" y="60">stg_sales</text><text class="s" x="272" y="78">rebuilt · memory only</text></g>
+        <g class="n acc view"><rect x="260" y="130" width="180" height="48" rx="6"/><text class="tm" x="272" y="150">stg_store</text><text class="s" x="272" y="168">rebuilt for fct_sales</text></g>
+        <g class="n acc view"><rect x="260" y="220" width="180" height="48" rx="6"/><text class="tm" x="272" y="240">stg_product</text><text class="s" x="272" y="258">rebuilt for fct_sales</text></g>
+
+        <g class="n acc"><rect x="500" y="40" width="190" height="48" rx="6"/><text class="tm" x="512" y="60">FCT_SALES</text><text class="s" x="512" y="78">stale → rebuilt 09:34:24</text></g>
+        <g class="n dim"><rect x="500" y="130" width="190" height="48" rx="6"/><text class="tm" x="512" y="150">DIM_STORE</text><text class="s" x="512" y="168">fresh · not rebuilt</text></g>
+        <g class="n dim"><rect x="500" y="220" width="190" height="48" rx="6"/><text class="tm" x="512" y="240">DIM_PRODUCT</text><text class="s" x="512" y="258">fresh · not rebuilt</text></g>
+
+        <g class="n acc"><rect x="760" y="20" width="220" height="48" rx="6"/><text class="tm" x="772" y="40">AGG_SALES_DAILY_STORE</text><text class="s" x="772" y="58">stale → rebuilt 09:35:03</text></g>
+        <g class="n acc"><rect x="760" y="80" width="220" height="48" rx="6"/><text class="tm" x="772" y="100">AGG_PRODUCT_PERFORMANCE</text><text class="s" x="772" y="118">stale → rebuilt 09:35:04</text></g>
+
+        <path class="e acc" d="M200,64 H256" marker-end="url(#a2c)"/>
+        <path class="e" d="M200,154 H256" marker-end="url(#a2)"/>
+        <path class="e" d="M200,244 H256" marker-end="url(#a2)"/>
+        <path class="e acc" d="M440,64 H496" marker-end="url(#a2c)"/>
+        <path class="e acc" d="M440,148 L496,76" marker-end="url(#a2c)"/>
+        <path class="e acc" d="M440,238 L496,82" marker-end="url(#a2c)"/>
+        <path class="e" d="M440,160 H496" marker-end="url(#a2)"/>
+        <path class="e" d="M440,250 H496" marker-end="url(#a2)"/>
+        <path class="e acc" d="M690,58 L756,46" marker-end="url(#a2c)"/>
+        <path class="e acc" d="M690,72 L756,102" marker-end="url(#a2c)"/>
+      </svg>
+    </div>
+    <figcaption>The live test on 27 Oct 2026: 3 rows inserted into <code>CORE_ICEBERG_S3.FACT_SALES</code> at 09:31:29 UTC. The next check found 3 of 5 tables stale, rebuilt them with the staging views they read, passed 16 tests, and re-checked: all fresh. Then <code>FCT_SALES</code> held 10,001 rows. The dimensions read other sources, so they kept their 07:31 build.</figcaption>
+    <div class="legend">
+      <span><i class="sw warn"></i>changed source</span>
+      <span><i class="sw acc"></i>rebuilt</span>
+      <span><i class="sw acc plan"></i>session view (exists only during the run)</span>
+      <span><i class="sw"></i>untouched</span>
+    </div>
+  </figure>
+  <div class="two">
+    <div class="card"><h3>One check, step by step</h3>
+      <ul>
+        <li>Fetch the repo; new commits on <code>main</code> apply from this check on.</li>
+        <li>Read the latest snapshot time of every source (reader role) and every mart table (writer role, read-only). Metadata only; about a minute end to end with <code>dbt parse</code>.</li>
+        <li>Build the stale tables, everything downstream of them, and the views and seeds they read.</li>
+        <li>Check again: data committed during the build starts another pass, up to 3.</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Ways to run it</h3>
+      <ul>
+        <li><code>watch --interval 900</code>: a loop, as in the Docker Compose setup on this laptop.</li>
+        <li><code>watch --once</code>: one check, for EventBridge, cron or a systemd timer.</li>
+        <li><code>--dry-run</code> lists what is stale without building; <code>--full</code> rebuilds everything.</li>
+        <li>Code changes are not data changes: build after merges through CI, or run a nightly <code>--full</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 3. ECS -->
+<section id="ecs">
+  <div class="sec-head">
+    <span class="num">3 · AWS DEPLOYMENT</span>
+    <h2>The test environment on ECS Fargate</h2>
+    <p>Terraform in <code>deploy/aws</code>. The account and region come from <code>AWS_PROFILE</code> / <code>AWS_REGION</code> when you run it; neither is written in any file. Validated, not yet applied.</p>
+  </div>
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1000 330" role="img" aria-label="ECS deployment: EventBridge Scheduler starts a Fargate task every 15 minutes with secrets from Secrets Manager and the image from ECR; the task runs in a private subnet and reaches Snowflake and GitHub through a NAT gateway with one Elastic IP, S3 through a gateway endpoint, and logs to CloudWatch, with failed runs alerting by email.">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a3c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <g class="n"><rect x="20" y="40" width="180" height="56" rx="6"/><text class="t" x="34" y="64">EventBridge Scheduler</text><text class="s" x="34" y="82">rate(15 minutes)</text></g>
+        <g class="n"><rect x="20" y="140" width="180" height="56" rx="6"/><text class="t" x="34" y="164">Secrets Manager</text><text class="s" x="34" y="182">PATs → env vars</text></g>
+        <g class="n"><rect x="20" y="240" width="180" height="56" rx="6"/><text class="t" x="34" y="264">ECR</text><text class="s" x="34" y="282">image v0.9.0</text></g>
+
+        <rect class="grp vpc" x="250" y="20" width="420" height="290" rx="10"/>
+        <text class="lbl" x="266" y="42">VPC · PRIVATE SUBNET · NO INBOUND</text>
+        <g class="n acc"><rect x="290" y="110" width="220" height="80" rx="6"/><text class="t" x="304" y="134">Fargate task</text><text class="s" x="304" y="153">dbt-horizon watch --once</text><text class="s" x="304" y="170">1 vCPU · 4 GB · stops when done</text></g>
+        <g class="n"><rect x="530" y="60" width="120" height="56" rx="6"/><text class="t" x="542" y="84">NAT gateway</text><text class="s" x="542" y="102">one Elastic IP</text></g>
+        <g class="n"><rect x="530" y="200" width="120" height="56" rx="6"/><text class="t" x="542" y="224">S3 endpoint</text><text class="s" x="542" y="242">gateway · no NAT fee</text></g>
+
+        <g class="n acc"><rect x="720" y="30" width="260" height="56" rx="6"/><text class="t" x="734" y="54">Snowflake Horizon</text><text class="s" x="734" y="72">network policy allows the Elastic IP</text></g>
+        <g class="n"><rect x="720" y="110" width="260" height="56" rx="6"/><text class="t" x="734" y="134">GitHub</text><text class="s" x="734" y="152">dbt repo · read-only</text></g>
+        <g class="n"><rect x="720" y="200" width="260" height="56" rx="6"/><text class="t" x="734" y="224">S3 bucket</text><text class="s" x="734" y="242">Iceberg data files</text></g>
+        <g class="n"><rect x="720" y="272" width="120" height="48" rx="6"/><text class="t" x="732" y="292">CloudWatch</text><text class="s" x="732" y="309">logs · 30 days</text></g>
+        <g class="n"><rect x="860" y="272" width="120" height="48" rx="6"/><text class="t" x="872" y="292">Email alert</text><text class="s" x="872" y="309">exit code ≠ 0</text></g>
+
+        <path class="e acc" d="M200,68 H240 V140 H286" marker-end="url(#a3c)"/><text class="k acc" x="206" y="60">starts</text>
+        <path class="e" d="M200,160 H286" marker-end="url(#a3)"/><text class="k" x="206" y="154">secrets</text>
+        <path class="e" d="M200,268 H240 V178 H286" marker-end="url(#a3)"/><text class="k" x="206" y="260">pull</text>
+        <path class="e acc" d="M510,128 H590 V120" marker-end="url(#a3c)"/>
+        <path class="e acc" d="M650,76 H716" marker-end="url(#a3c)"/>
+        <path class="e" d="M650,100 H690 V138 H716" marker-end="url(#a3)"/>
+        <text class="k acc" x="694" y="64" text-anchor="middle">HTTPS</text>
+        <path class="e acc" d="M510,172 H590 V196" marker-end="url(#a3c)"/>
+        <path class="e acc" d="M650,228 H716" marker-end="url(#a3c)"/>
+        <path class="e" d="M400,190 V290 H716" marker-end="url(#a3)"/><text class="k" x="560" y="284">stdout</text>
+        <path class="e" d="M840,296 H856" marker-end="url(#a3)"/>
+      </svg>
+    </div>
+    <figcaption>All the task's traffic to Snowflake and GitHub leaves through one NAT gateway with a fixed Elastic IP, the address Snowflake's network policy allows. Your laptop can't promise that, because its IP keeps changing. In <code>run_mode = "service"</code>, one always-on task runs the loop instead, so runs can never overlap.</figcaption>
+  </figure>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Where it runs</th><th>How it is triggered</th><th>Overlap protection</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>This laptop · Docker Compose</td><td><code>watch --interval 900</code> loop, restarts with Docker</td><td>one container</td><td><span class="tag ok">running · tested</span></td></tr>
+        <tr><td>Linux / Windows server</td><td>systemd timer or Task Scheduler → <code>deploy/run.sh</code></td><td>lock per deployment (exit 75)</td><td><span class="tag ok">v0.8.0 · CI-tested</span></td></tr>
+        <tr><td>AWS ECS Fargate</td><td>EventBridge Scheduler → <code>watch --once</code>, or an always-on service</td><td>interval &gt; build time, or service mode</td><td><span class="tag plan">validated · not applied</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 4. INGESTION -->
+<section id="ingest">
+  <div class="sec-head">
+    <span class="num">4 · FIVETRAN INGESTION</span>
+    <h2>Two ways to get Fivetran data into Horizon</h2>
+    <p>Fivetran can't write the Snowflake-managed Iceberg tables Horizon serves today. The two paths differ by one hop: whether Snowflake compute copies the data into Iceberg (A), or Fivetran writes Iceberg itself (B).</p>
+  </div>
+  <figure>
+    <div class="canvas">
+      <svg viewBox="0 0 1000 250" role="img" aria-label="Comparison of two ingestion paths. Path A: Fivetran writes native Snowflake tables, a dynamic Iceberg table refreshed by a warehouse copies them into Snowflake-managed Iceberg, which Horizon serves to dbt-horizon. Path B: Fivetran writes Iceberg to S3 with its own catalog, a Snowflake catalog-linked database discovers the tables, and Horizon serves them to dbt-horizon in preview.">
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="a4c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <text class="lbl acc" x="20" y="28">A · AVAILABLE NOW (GA) · RECOMMENDED</text>
+        <g class="n"><rect x="20" y="44" width="150" height="56" rx="6"/><text class="t" x="34" y="68">Fivetran</text><text class="s" x="34" y="86">Snowflake destination</text></g>
+        <g class="n"><rect x="200" y="44" width="160" height="56" rx="6"/><text class="t" x="214" y="68">Native tables</text><text class="s" x="214" y="86">Snowflake storage</text></g>
+        <g class="n warn"><rect x="390" y="44" width="190" height="56" rx="6"/><text class="t" x="404" y="68">Dynamic Iceberg table</text><text class="s" x="404" y="86">warehouse refresh · TARGET_LAG</text></g>
+        <g class="n"><rect x="610" y="44" width="170" height="56" rx="6"/><text class="t" x="624" y="68">Snowflake-managed</text><text class="s" x="624" y="86">Iceberg · served by Horizon</text></g>
+        <g class="n acc"><rect x="810" y="44" width="170" height="56" rx="6"/><text class="t" x="824" y="68">dbt-horizon</text><text class="s" x="824" y="86">watch → rebuild</text></g>
+        <path class="e" d="M170,72 H196" marker-end="url(#a4)"/>
+        <path class="e" d="M360,72 H386" marker-end="url(#a4)"/>
+        <path class="e" d="M580,72 H606" marker-end="url(#a4)"/>
+        <path class="e acc" d="M780,72 H806" marker-end="url(#a4c)"/>
+        <text class="k" x="404" y="118">+ the only Snowflake compute left in the pipeline</text>
+
+        <text class="lbl warn" x="20" y="158">B · FIVETRAN BETA + SNOWFLAKE PREVIEW · TRY IN TEST</text>
+        <g class="n"><rect x="20" y="174" width="150" height="56" rx="6"/><text class="t" x="34" y="198">Fivetran</text><text class="s" x="34" y="216">Managed Data Lake</text></g>
+        <g class="n"><rect x="200" y="174" width="160" height="56" rx="6"/><text class="t" x="214" y="198">Iceberg in S3</text><text class="s" x="214" y="216">Fivetran's catalog</text></g>
+        <g class="n"><rect x="390" y="174" width="190" height="56" rx="6"/><text class="t" x="404" y="198">Catalog-linked database</text><text class="s" x="404" y="216">finds new tables · 30 s</text></g>
+        <g class="n plan"><rect x="610" y="174" width="170" height="56" rx="6"/><text class="t" x="624" y="198">Horizon</text><text class="s" x="624" y="216">externally managed · Preview</text></g>
+        <g class="n acc"><rect x="810" y="174" width="170" height="56" rx="6"/><text class="t" x="824" y="198">dbt-horizon</text><text class="s" x="824" y="216">watch → rebuild</text></g>
+        <path class="e" d="M170,202 H196" marker-end="url(#a4)"/>
+        <path class="e" d="M360,202 H386" marker-end="url(#a4)"/>
+        <path class="e plan" d="M580,202 H606" marker-end="url(#a4)"/>
+        <path class="e acc plan" d="M780,202 H806" marker-end="url(#a4c)"/>
+      </svg>
+    </div>
+    <figcaption>In both paths a new snapshot is what triggers <code>watch</code>, and new source tables need no separate registration. In A, each new Fivetran table needs one <code>CREATE DYNAMIC ICEBERG TABLE</code>, which can be automated. In B, the catalog-linked database finds new tables by itself. A future grant (<code>GRANT SELECT ON FUTURE … TO ROLE DUCKDB_READER</code>) makes new tables readable to DuckDB.</figcaption>
+  </figure>
+</section>
+
+<!-- 5. COMPONENTS -->
+<section id="components">
+  <div class="sec-head">
+    <span class="num">5 · COMPONENTS</span>
+    <h2>What lives where in the dbt-horizon repo</h2>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Part</th><th>Files</th><th>Job</th></tr></thead>
+      <tbody>
+        <tr><td>Config</td><td class="mono">config.py</td><td>One YAML per repo and account: repo URL and ref, Snowflake roles, the env-var names of the PATs, <code>source_mapping</code>, <code>target_naming</code>.</td></tr>
+        <tr><td>Repo &amp; workspace</td><td class="mono">repo.py · workspace.py</td><td>Clone or fetch, check out one commit detached, copy it per commit. The repo itself is never edited.</td></tr>
+        <tr><td>Horizon connection</td><td class="mono">catalog.py</td><td>DuckDB secrets and ATTACH (reader read-only, writer with Horizon's write options), error messages that say how to fix the problem.</td></tr>
+        <tr><td>Inventory</td><td class="mono">inventory.py</td><td><code>dbt parse</code> with Snowflake-equivalent names → models, sources, lineage, hooks.</td></tr>
+        <tr><td>Rules</td><td class="mono">rules/*</td><td>Sources, materializations, configs, hooks, packages, naming, SQL → ok / auto_fixed / review / needs_mapping / unsupported.</td></tr>
+        <tr><td>SQL layer</td><td class="mono">sqlrewrite.py · compat.py</td><td>Checks each model with DuckDB's own parser; sqlglot rewrites (FLATTEN → UNNEST, <code>v:path</code> → <code>-&gt;&gt;</code>); 17 compat macros (IFF, NVL, DIV0…).</td></tr>
+        <tr><td>Overlay</td><td class="mono">transform/* · shim/*.sql</td><td>Generated profile, shim macros (Iceberg materializations, naming, hook filter), <code>--vars</code>, <code>--exclude</code>.</td></tr>
+        <tr><td>Run &amp; preflight</td><td class="mono">run.py · preflight.py · setup_sql.py</td><td><code>dbt build</code> in a subprocess, results to JSON; checks the target schemas are writable; prints the Snowflake setup script.</td></tr>
+        <tr><td>Data trigger</td><td class="mono">watch.py</td><td>Snapshot-time freshness, the build selection, re-check passes.</td></tr>
+        <tr><td>Export</td><td class="mono">export.py</td><td>Optional: the overlay as a branch of the dbt repo, every change conditional on <code>target.type == 'duckdb'</code>; Snowflake compile proven identical.</td></tr>
+        <tr><td>Packaging &amp; deploy</td><td class="mono">Dockerfile · docker/ · deploy/ · .github/workflows/</td><td>Image (GHCR), Compose, systemd and Task Scheduler scripts, ECS Terraform, CI (tests, image, terraform, deploy job).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 6. ACCESS -->
+<section id="access">
+  <div class="sec-head">
+    <span class="num">6 · ACCESS</span>
+    <h2>Least privilege, by design</h2>
+    <p>Two Snowflake roles, each able to do exactly one thing. A mistake in a model can't overwrite a source table, because the role that writes can't see the sources.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Credential</th><th>Can</th><th>Cannot</th><th>Lives in</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">DUCKDB_READER · SNOWFLAKE_PAT</td><td>read <code>CORE_ICEBERG_S3</code> through Horizon</td><td>write anything; see the marts</td><td rowspan="2">env vars only: <code>docker/.env</code>, <code>secrets/&lt;name&gt;.env</code>, Secrets Manager, CI secrets</td></tr>
+        <tr><td class="mono">DBT_DUCKDB_WRITER · SNOWFLAKE_WRITE_PAT</td><td>create and replace tables in <code>DBT_RETAIL_ICEBERG</code></td><td>read or change the sources</td></tr>
+        <tr><td class="mono">Git token (private repos)</td><td>read the dbt repo</td><td>push (unless <code>export --push</code>)</td><td>same; sent to git per command, shown as <code>***</code> in errors</td></tr>
+        <tr><td>Network policy</td><td colspan="3">Both PAT users accept requests only from allowed IPs: the ECS NAT Elastic IP, or a machine you add by hand.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 7. STATUS -->
+<section id="status">
+  <div class="sec-head">
+    <span class="num">7 · RELEASES &amp; VERIFICATION</span>
+    <h2>What exists, and how it was proven</h2>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Release</th><th>Adds</th><th>Proven by</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">v0.6.0</td><td>Phases 1–6: connect, analyze, read and write mode, SQL layer, packaging, CI templates</td><td>Read mode 26 tests / 9 nodes; write mode same row counts (50 · 200 · 9,998 · 7,707 · 200)</td></tr>
+        <tr><td class="mono">v0.8.0</td><td>Export (Phase 7), deploy scripts for your own machines (Phase 8)</td><td>Snowflake compile identical after export; plain <code>dbt build</code> PASS=35; systemd run in CI</td></tr>
+        <tr><td class="mono">v0.9.0</td><td><code>watch</code>, Docker image, ECS Terraform (Phase 9)</td><td>Live trigger: 3 rows → 3 tables rebuilt in about 4 minutes; container run from GHCR; 162 offline + 7 online tests</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two">
+    <div class="card"><h3>Running now</h3>
+      <ul>
+        <li>Docker Compose watcher on this laptop, image <code>v0.9.0</code>, checking every 15 minutes.</li>
+        <li>Blocked when the laptop sleeps or its public IP changes.</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Open items</h3>
+      <ul>
+        <li>Apply the ECS Terraform in the test account.</li>
+        <li>Fivetran ingestion: path A, plus automation that creates dynamic Iceberg tables for new tables.</li>
+        <li>Log the next check time; a <code>compare</code> command that checks DuckDB results against Snowflake's.</li>
+        <li>Bump the CI templates from <code>@v0.6.0</code> to <code>@v0.9.0</code>.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div>

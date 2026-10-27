@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.dbt_horizon
+.pytest_cache
+**/__pycache__
+*.egg-info
+build
+dist
+tests
+deploy
+docs
+examples
+*.env
+.env
+*.duckdb
+*.duckdb.wal

@@ -1,0 +1,21 @@
+# dbt-horizon run of one deployment: dbt-horizon@<name>.service runs configs/<name>.yml.
+# Installed by install-units.sh (@USER@ / @HOME@ filled in). Started by dbt-horizon@<name>.timer,
+# or by hand: sudo systemctl start dbt-horizon@<name>.service
+[Unit]
+Description=dbt-horizon run: %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@USER@
+Group=@GROUP@
+Environment=DBT_HORIZON_HOME=@HOME@
+ExecStart=@HOME@/app/deploy/run.sh %i
+# 75: skipped, the previous run of the same lock is still going
+SuccessExitStatus=75
+TimeoutStartSec=6h
+Nice=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

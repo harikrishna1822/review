@@ -1,0 +1,33 @@
+# configs/<name>.yml: one deployment = one dbt repo + project + Snowflake account + environment.
+# Here: configs/retail.prod.yml, run by `run.sh retail.prod` / dbt-horizon@retail.prod.timer.
+repo:
+  url: https://github.com/harikrishna1822/snowflake-dbt.git
+  ref: main                          # production: the branch Snowflake runs
+  project_dir: retail_analytics_dbt  # required when the repo has several dbt projects
+  # token_env: GITHUB_TOKEN          # private repo: read-only token in secrets/<name>.env
+
+snowflake:
+  account: fblpisn-umc02429
+  databases: [RETAIL_ANALYTICS]
+  reader:
+    role: DUCKDB_READER
+    pat_env: SNOWFLAKE_PAT
+  writer:
+    role: DBT_DUCKDB_WRITER
+    pat_env: SNOWFLAKE_WRITE_PAT
+
+mode: write
+
+source_mapping:
+  - match: { database: RETAIL_ANALYTICS, schema: CORE }
+    to:    { schema: CORE_ICEBERG_S3 }
+
+target_naming:
+  schema: "{schema}_ICEBERG"         # a test deployment of the same repo: e.g. "{schema}_ICEBERG_TEST"
+  identifier_case: upper
+
+unsupported_policy: exclude
+
+# One folder per deployment (relative to configs/): deployments never share a repo clone
+# or workspace, so they can run at the same time.
+workspace_root: ../.dbt_horizon/retail.prod

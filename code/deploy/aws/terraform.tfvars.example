@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (or pass -var). No account, region or secrets here:
+# AWS_REGION + AWS_PROFILE (or keys) come from the environment, PATs go to Secrets Manager.
+deployment  = "retail-test"
+config_file = "../examples/config.yml"   # your dbt-horizon config (no secrets)
+
+# run_mode            = "schedule"           # or "service" (always-on watch loop)
+# schedule_expression = "rate(15 minutes)"
+# alert_email         = "data-team@example.com"
+
+# Existing network instead of the small VPC this module creates:
+# create_network = false
+# vpc_id         = "vpc-..."
+# subnet_ids     = ["subnet-..."]          # private, default route = NAT gateway with an Elastic IP

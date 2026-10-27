@@ -1,0 +1,23 @@
+# Local / VM test of the dbt-horizon container, loop mode (checks every 15 minutes).
+#
+#   cp docker/example.env docker/.env     # fill in the PATs (never commit it)
+#   cp deploy/examples/config.yml docker/dbt-horizon.yml
+#   docker compose -f docker/compose.yml up --build -d
+#   docker compose -f docker/compose.yml logs -f
+#
+# One check now:  docker compose -f docker/compose.yml run --rm dbt-horizon watch --once --dry-run
+services:
+  dbt-horizon:
+    image: ${DBT_HORIZON_IMAGE:-dbt-horizon:local}
+    build:
+      context: ..
+    command: ["watch", "--interval", "${DBT_HORIZON_INTERVAL:-900}"]
+    env_file: [.env]
+    volumes:
+      - ./dbt-horizon.yml:/config/dbt-horizon.yml:ro
+      - dbt-horizon-data:/data
+    restart: unless-stopped
+    stop_grace_period: 2m          # a build in progress finishes its cycle before the container stops
+
+volumes:
+  dbt-horizon-data:
