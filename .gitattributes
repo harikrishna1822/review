@@ -1,0 +1,3 @@
+# scripts and configs run in Linux containers: LF on every checkout (a CRLF run.sh breaks the image)
+* text=auto eol=lf
+*.tar.gz binary

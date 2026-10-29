@@ -1,0 +1,39 @@
+{
+  "family": "dbt-horizon-runner-test",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "2048",
+  "memory": "8192",
+  "runtimePlatform": { "operatingSystemFamily": "LINUX", "cpuArchitecture": "X86_64" },
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/<ECS_TASK_EXECUTION_ROLE>",
+  "containerDefinitions": [
+    {
+      "name": "dbt-horizon-runner",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/dbt-horizon-runner:<TAG>",
+      "essential": true,
+      "stopTimeout": 120,
+      "environment": [
+        { "name": "RUNNER_REPO_URL", "value": "https://github.com/harikrishna1822/dbt-demo.git" },
+        { "name": "RUNNER_REPO_REF", "value": "dbt-horizon/duckdb-test" },
+        { "name": "RUNNER_PROJECT_DIR", "value": "retail_analytics_dbt" },
+        { "name": "RUNNER_COMMAND", "value": "build" },
+        { "name": "RUNNER_TARGET", "value": "horizon_write" },
+        { "name": "RUNNER_INTERVAL", "value": "0" }
+      ],
+      "secrets": [
+        { "name": "GIT_TOKEN", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:dbt-horizon-runner/test:GIT_TOKEN::" },
+        { "name": "DBT_HORIZON_READER_PAT", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:dbt-horizon-runner/test:DBT_HORIZON_READER_PAT::" },
+        { "name": "DBT_HORIZON_WRITER_PAT", "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:dbt-horizon-runner/test:DBT_HORIZON_WRITER_PAT::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/dbt-horizon-runner-test",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "runner",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

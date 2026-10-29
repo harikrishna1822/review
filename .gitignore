@@ -1,0 +1,2 @@
+# the runner image is a GitHub Release asset, not in git (217 MB > GitHub's 100 MB file limit)
+dbt-horizon-runner-sre/image/*.tar.gz
